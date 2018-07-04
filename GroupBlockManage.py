@@ -1,3 +1,7 @@
+"""
+使用成组链接法管理空闲块
+"""
+
 
 GROUP_MAX_BLOCK_CNT = 32
 MAX_GROUP_CNT = 32

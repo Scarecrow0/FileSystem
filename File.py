@@ -12,9 +12,13 @@ class FileManager:
         if work_dir.get_file(file_name) is not None:
             return -1
         if type_ == "plain":
-            work_dir.add_file(PlainFile(file_name, self))
+            file = PlainFile(file_name, self)
+            work_dir.add_file(file)
+            return file
         if type_ == "dir":
-            work_dir.add_file(DirFile(file_name, self))
+            file = DirFile(file_name, self)
+            work_dir.add_file(file)
+            return file
 
     @staticmethod
     def remove_file_walker(target_file, curr_dir):
@@ -25,28 +29,30 @@ class FileManager:
         file_list = [target_file]
         while len(file_list) != 0:
             target = file_list.pop()
-            if target.get_type_name == "PlainFile":
-                curr_dir.remove_file(target.file_name)
+            if target.get_type_name() == "PlainFile":
+                curr_dir.remove_file(target)
                 target.delete()
-            if target.get_type_name == "DirFile":
+            if target.get_type_name() == "DirFile":
                 file_list.extend(target.dir_dict.values())
                 target.dir_dict.clear()
-                curr_dir.remove_file(target.file_name)
+                curr_dir.remove_file(target)
                 target.delete()
 
 
     @staticmethod
     def remove_file(file_name, work_dir):
-        target_file =  work_dir.get_file(file_name)
+        target_file = work_dir.get_file(file_name)
         FileManager.remove_file_walker(target_file, work_dir)
 
-    @staticmethod
-    def open_file(file_name, work_dir):
+    def open_file(self,file_name, work_dir):
         file = work_dir.get_file(file_name)
         if file is not None:
             if file.get_type_name() != "DirFile":
                 return file
-        return None
+            else:
+                return None
+        else:
+            return self.create_file("plain", file_name, work_dir)
 
 
     def free_block(self, block):

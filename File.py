@@ -6,19 +6,50 @@ import math
 class FileManager:
     def __init__(self):
         self.empty_block_manager = GroupBlockManage.EmptyBlockManager()
-        self.root_dir = DirFile("", self)
+        self.root_dir = DirFile("", self, 0)
 
-    def create_file(self, type_, file_name, work_dir):
+    def create_file(self, type_, file_name, work_dir, group_id):
         if work_dir.get_file(file_name) is not None:
             return -1
         if type_ == "plain":
-            file = PlainFile(file_name, self)
+            file = PlainFile(file_name, self, group_id)
             work_dir.add_file(file)
             return file
         if type_ == "dir":
-            file = DirFile(file_name, self)
+            file = DirFile(file_name, self, group_id)
             work_dir.add_file(file)
             return file
+
+    def search_file(self, path, work_dir):
+        """
+        根据路径寻找文件  目标可以是普通文件 或者目录文件
+        :return:
+        """
+        if path.startswith("/"):
+            start_dir = self.root_dir
+        else:
+            start_dir = work_dir
+        path = path.split("/")
+        search_route = []
+        curr_dir = start_dir
+        next_dir = curr_dir  # 如果传入路径为空的话 返回起点目录
+
+        for each in range(len(path)):
+            dir_name = path[each]
+            if dir_name == "":
+                continue
+            search_route.append(curr_dir)
+            next_dir = curr_dir.get_file(dir_name)  # 获取下一路径的文件
+            if next_dir is not None:  # 当文件不为空时 继续步进
+                if next_dir.get_type_name() == "DirFile" and each != len(path) - 1:
+                    # 文件为目录类型  且不为最后一个 继续步进
+                    curr_dir = next_dir
+                if each == len(path) - 1:
+                    break  # 文件路径以步进至最后一个token 且搜索得到的文件不为空
+                    # 也不为目录文件  说明找到了正确文件返回
+            else:
+                return -1, -1
+        return next_dir, search_route
 
     @staticmethod
     def remove_file_walker(target_file, curr_dir):
@@ -42,7 +73,10 @@ class FileManager:
     @staticmethod
     def remove_file(file_name, work_dir):
         target_file = work_dir.get_file(file_name)
+        if target_file is None:
+            return -1
         FileManager.remove_file_walker(target_file, work_dir)
+        return 0
 
     def open_file(self,file_name, work_dir):
         file = work_dir.get_file(file_name)
@@ -67,16 +101,17 @@ class File:
     """
     UNIX 核心概念 一切皆文件
     """
-    def __init__(self, file_name, file_manager):
+    def __init__(self, file_name, file_manager, group_id):
         self.file_name = file_name
         self.block_dict = []
         self.block_dict.append(file_manager.alloc_block())
         self.file_length = 0
         self.file_manager = file_manager
         self.user = ""
+        self.group_id = group_id
 
-    def set_property(self, username):
-        self.user = username
+    def set_property(self, group_id):
+        self.group_id = group_id
 
     def get_type_name(self):
         return self.__class__.__name__
@@ -87,14 +122,14 @@ class File:
 
 
 class PlainFile(File):
-    def __init__(self, file_name, file_manger):
-        File.__init__(self, file_name, file_manger)
+    def __init__(self, file_name, file_manger, group_id):
+        File.__init__(self, file_name, file_manger, group_id)
         self.content = ""
 
-    def get_content(self):
+    def read(self):
         return self.content
 
-    def set_content(self, new_content):
+    def write(self, new_content):
         self.content = new_content
         self.update_length()
 
@@ -114,8 +149,8 @@ class PlainFile(File):
 
 
 class DirFile(File):
-    def __init__(self, dir_name, file_manager):
-        File.__init__(self, dir_name, file_manager)
+    def __init__(self, dir_name, file_manager, group_id):
+        File.__init__(self, dir_name, file_manager, group_id)
         self.dir_dict = {}
 
 

@@ -62,7 +62,8 @@ class EmptyBlockManager:
         res += "super_block %s\n" % self.super_block.__str__()
         curr = self.super_block.next_block
         while curr is not None:
-            res += curr.__str__() + "\n\n"
+            if curr.empty_cnt < 32:
+                res += curr.__str__() + "\n"
             curr = curr.next_block
         return  res
 

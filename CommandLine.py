@@ -114,8 +114,7 @@ class CLI:
     def ls(self, *args):
         print("in curr dir:")
         for each in self.work_dir.dir_dict.values():
-            print("%-10s%-15s%-10s%s" %
-                  (each.file_name, each.get_type_name(), str(each.group_id), str(each.block_dict)))
+            print(str(each))
 
 
     def edit(self, *arg):
@@ -230,6 +229,7 @@ class CLI:
 
     def tree(self, *args):
         level_cnt = 0
+        print("file_name  inode id")
         self.tree_walk(self.work_dir, level_cnt)
         return
 
@@ -237,7 +237,8 @@ class CLI:
         res = "  " * (level - 1) + "|\n"
         res += "  " * (level - 1)
         res += "--"
-        res += "%s  %s" % (curr_node.file_name, curr_node.get_type_name())
+        res += "%s  %s" % \
+               ("root" if curr_node.file_name else curr_node.file_name, curr_node.inode_id)
         print(res)
         if curr_node.get_type_name() == "DirFile":
             for each_child in curr_node.dir_dict.values():

@@ -5,6 +5,7 @@ import GroupBlockManage
 class FileManager:
     def __init__(self):
         self.empty_block_manager = GroupBlockManage.EmptyBlockManager()
+        self.inode_manager = iNodeManager()
         self.root_dir = DirFile("", self, 0)
 
     def create_file(self, type_, file_name, work_dir, group_id):
@@ -18,6 +19,7 @@ class FileManager:
             file = DirFile(file_name, self, group_id)
             work_dir.add_file(file)
             return file
+
 
     def search_file(self, path, work_dir):
         """
@@ -50,6 +52,27 @@ class FileManager:
                 return -1, -1
         return next_dir, search_route
 
+    def open_file(self, file_name, work_dir, group_id):
+        file = work_dir.get_file(file_name)
+        if file is not None:
+            if file.get_type_name() != "DirFile":
+                return file
+            else:
+                return None
+        else:
+            return self.create_file("plain", file_name, work_dir, group_id)
+
+    def free_block(self, block):
+        return self.empty_block_manager.free_block(block)
+
+    def alloc_block(self):
+        return self.empty_block_manager.alloc_block()
+
+    def acquire_inode(self):
+        return self.inode_manager.create_inode()
+
+    def free_inode(self, inode):
+        self.free_inode(inode)
 
     @staticmethod
     def remove_file(file_name, work_dir):
@@ -58,6 +81,7 @@ class FileManager:
             return -1
         FileManager.remove_file_walker(target_file, work_dir)
         return 0
+
 
     @staticmethod
     def remove_file_walker(target_file, curr_dir):
@@ -77,22 +101,20 @@ class FileManager:
                 curr_dir.remove_file(target)
                 target.delete()
 
-    def open_file(self, file_name, work_dir, group_id):
-        file = work_dir.get_file(file_name)
-        if file is not None:
-            if file.get_type_name() != "DirFile":
-                return file
-            else:
-                return None
-        else:
-            return self.create_file("plain", file_name, work_dir, group_id)
+class iNodeManager:
+    def __init__(self):
+        self.free_inode = list(range(128))
+        self.using_inode_list = {}
+        self.inode_cnt = 0
 
+    def create_inode(self):
+        # acquire this inode address
+        inode = self.free_inode.pop()
+        self.using_inode_list[inode] = 0
+        return inode
 
-    def free_block(self, block):
-        return self.empty_block_manager.free_block(block)
-
-    def alloc_block(self):
-        return self.empty_block_manager.alloc_block()
+    def free_inode(self, inode):
+        self.using_inode_list[inode] = None
 
 
 
@@ -107,6 +129,7 @@ class File:
         self.file_manager = file_manager
 
         # iNode
+        self.inode_id = self.file_manager.acquire_inode()
         self.block_dict = []
         self.block_dict.append(file_manager.alloc_block())
         self.file_length = 0
@@ -120,7 +143,12 @@ class File:
     def delete(self):
         for each in self.block_dict:
             self.file_manager.free_block(each)
+        self.file_manager.free_inode(self.inode_id)
 
+    def __str__(self):
+        res = "%-10s%-15s%-10s%-8s%s" % \
+              (self.file_name, self.get_type_name(), self.group_id, self.inode_id, self.block_dict)
+        return res
 
 class PlainFile(File):
     def __init__(self, file_name, file_manger, group_id):

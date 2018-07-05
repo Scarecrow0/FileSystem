@@ -1,7 +1,6 @@
-import GroupBlockManage
 import math
 
-
+import GroupBlockManage
 
 class FileManager:
     def __init__(self):
@@ -51,6 +50,15 @@ class FileManager:
                 return -1, -1
         return next_dir, search_route
 
+
+    @staticmethod
+    def remove_file(file_name, work_dir):
+        target_file = work_dir.get_file(file_name)
+        if target_file is None:
+            return -1
+        FileManager.remove_file_walker(target_file, work_dir)
+        return 0
+
     @staticmethod
     def remove_file_walker(target_file, curr_dir):
         """
@@ -69,16 +77,7 @@ class FileManager:
                 curr_dir.remove_file(target)
                 target.delete()
 
-
-    @staticmethod
-    def remove_file(file_name, work_dir):
-        target_file = work_dir.get_file(file_name)
-        if target_file is None:
-            return -1
-        FileManager.remove_file_walker(target_file, work_dir)
-        return 0
-
-    def open_file(self,file_name, work_dir):
+    def open_file(self, file_name, work_dir, group_id):
         file = work_dir.get_file(file_name)
         if file is not None:
             if file.get_type_name() != "DirFile":
@@ -86,7 +85,7 @@ class FileManager:
             else:
                 return None
         else:
-            return self.create_file("plain", file_name, work_dir)
+            return self.create_file("plain", file_name, work_dir, group_id)
 
 
     def free_block(self, block):
@@ -103,12 +102,14 @@ class File:
     """
     def __init__(self, file_name, file_manager, group_id):
         self.file_name = file_name
+        self.user = ""
+        self.group_id = group_id
+        self.file_manager = file_manager
+
+        # iNode
         self.block_dict = []
         self.block_dict.append(file_manager.alloc_block())
         self.file_length = 0
-        self.file_manager = file_manager
-        self.user = ""
-        self.group_id = group_id
 
     def set_property(self, group_id):
         self.group_id = group_id

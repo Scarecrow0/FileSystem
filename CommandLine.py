@@ -9,7 +9,6 @@ import UserDB
 对于工作目录来说 ，就如同是打开一个个目录文件
 """
 
-# todo 历史记录功能
 # todo 展示文件树
 
 
@@ -31,6 +30,7 @@ class CLI:
                         file_ = open(file_, "r+b")
                         self.file_manager = pickle.load(file_)
                         self.user_manager.load_archive_exist()
+                        file_.close()
                     else:
                         print("create new file")
 
@@ -62,6 +62,7 @@ class CLI:
             else:
                 print("no such cmd")
 
+
     def cd(self, *arg):
         try:
             path = arg[0]
@@ -81,6 +82,9 @@ class CLI:
             return
         if self.user_manager.check_property(self.curr_user, target_dir.group_id) != 0:
             print("can't not access to file , have not enough auth")
+            return
+        if target_dir.get_type_name() != "DirFile":
+            print("can't open non DirFile")
             return
 
         if len(search_route) == 0: # 如果搜索路径路程为空 说明距离目标只有一步，
@@ -133,16 +137,17 @@ class CLI:
         if target_file == -1:
             print("can't find file")
             return
-        work_dir = target_file
-        file = self.file_manager.open_file(file_name, work_dir)
 
+        work_dir = target_file
+        file = self.file_manager.open_file(file_name, work_dir,
+                                           group_id=self.user_manager.look_up_property(self.curr_user))
+        if file is None:
+            print("can only edit plain text file")
+            return
         if self.user_manager.check_property(self.curr_user, file.group_id) != 0:
             print("can't not access to file , have not enough auth")
             return
 
-        if file is None:
-            print("can only edit plain text file")
-            return
         print("file content:\n%s" % file.read())
         print("please input things and end up with $ in single line")
         content = ""
@@ -161,9 +166,7 @@ class CLI:
         except IndexError:
             print("no enough args")
             return
-
         path = path.split("/")
-
         file_name = path[-1]
         tmp_path = ""
         for each in range(len(path) - 1):
@@ -225,6 +228,20 @@ class CLI:
             print("%s %s" % (each[1], each[0]))
         pass
 
+    def tree(self, *args):
+        level_cnt = 0
+        self.tree_walk(self.work_dir, level_cnt)
+        return
+
+    def tree_walk(self, curr_node, level):
+        res = "  " * (level - 1) + "|\n"
+        res += "  " * (level - 1)
+        res += "--"
+        res += "%s  %s" % (curr_node.file_name, curr_node.get_type_name())
+        print(res)
+        if curr_node.get_type_name() == "DirFile":
+            for each_child in curr_node.dir_dict.values():
+                self.tree_walk(each_child, level + 1)
 
     cmd_dict = {
         "pwd": pwd,
@@ -233,6 +250,7 @@ class CLI:
         "rm": rm,
         "edit": edit,
         "ls": ls,
+        "tree": tree,
 
         "chmod": chmod,
         "chgrp": chgrp,

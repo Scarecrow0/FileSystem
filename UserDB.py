@@ -73,7 +73,10 @@ class UserManager:
         for root, dirs, files in os.walk("."):
             for file_ in files:
                 if file_.startswith('user_db'):
+                    file_ = open(file_, "r+b")
                     self.user_db = pickle.load(file_)
+                    file_.close()
+                    return
 
     def save_archive(self):
         file_ = open("user_db", "w+b")

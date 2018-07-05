@@ -58,6 +58,12 @@ class UserDB:
         user.history.append((action, time))
         return 0
 
+    def get_history(self, username):
+        user = self.user_dict.get(username)
+        if user is None:
+            return -2
+        return user.history
+
 
 class UserManager:
     def __init__(self):
@@ -91,3 +97,6 @@ class UserManager:
 
     def update_history(self, username, action, time):
         return self.user_db.update_history(username, action, time)
+
+    def get_user_history(self, username):
+        return self.user_db.get_history(username)

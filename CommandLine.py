@@ -1,5 +1,6 @@
 import os
 import pickle
+import time
 
 import File
 import UserDB
@@ -10,6 +11,10 @@ import UserDB
 
 # todo 历史记录功能
 # todo 展示文件树
+
+
+def get_time():
+    return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 
 class CLI:
     def __init__(self):
@@ -40,19 +45,20 @@ class CLI:
             return
 
         while True:
-            print(self.curr_user + "$ >", end="")
-            cmd = input()
-            if cmd == "exit":
+            print("%s %s $ >" % (get_time(), self.curr_user), end="")
+            cmd_raw = input()
+            if cmd_raw == "exit":
                 file_ = open("load", "w+b")
                 pickle.dump(self.file_manager, file_)
                 file_.close()
                 self.user_manager.save_archive()
                 print("file system has been saved")
                 return
-            cmd = cmd.split(" ")
+            cmd = cmd_raw.split(" ")
             func = CLI.cmd_dict.get(cmd[0])
             if func is not None:
                 func(self, *cmd[1:])
+                self.user_manager.update_history(self.curr_user, cmd_raw, get_time())
             else:
                 print("no such cmd")
 
@@ -212,6 +218,12 @@ class CLI:
     def show_blocks(self, *args):
         print(self.file_manager.empty_block_manager.__str__())
 
+    def show_user_history(self, *args):
+        his_list = self.user_manager.get_user_history(self.curr_user)
+        print("user %s action history" % self.curr_user)
+        for each in his_list:
+            print("%s %s" % (each[1], each[0]))
+        pass
 
 
     cmd_dict = {
@@ -221,9 +233,12 @@ class CLI:
         "rm": rm,
         "edit": edit,
         "ls": ls,
+
         "chmod": chmod,
         "chgrp": chgrp,
         "shgrp": shgrp,
+
+        "shhis": show_user_history,
         "shblk": show_blocks
 
     }

@@ -1,5 +1,7 @@
 # FileSystem
 
+运行要求  Python 3 
+
 文件操作
 
     cd 相对绝对路径

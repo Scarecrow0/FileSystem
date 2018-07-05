@@ -1,12 +1,15 @@
-import File
-import  UserDB
-
-import pickle
 import os
+import pickle
+
+import File
+import UserDB
+
 """
 对于工作目录来说 ，就如同是打开一个个目录文件
 """
 
+# todo 历史记录功能
+# todo 展示文件树
 
 class CLI:
     def __init__(self):

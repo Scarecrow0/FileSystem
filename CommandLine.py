@@ -69,11 +69,13 @@ class CLI:
         except IndexError:
             print("no enough args")
             return
-        if path == "..":
+        while path.startswith(".."):
             if self.work_dir != self.file_manager.root_dir:
                 self.work_dir = self.dir_route.pop()
-                self.pwd()
-                return
+                path = path[3:]
+        if path == "":
+            self.pwd()
+            return
 
         target_dir, search_route = self.file_manager.search_file(path, self.work_dir)
 
@@ -110,11 +112,35 @@ class CLI:
         else:
             self.ls()
 
-
-    def ls(self, *args):
+    def ls(self):
         print("in curr dir:")
         for each in self.work_dir.dir_dict.values():
             print(str(each))
+
+    def less(self, *args):
+        try:
+            path = args[0]
+        except IndexError:
+            print("no enough args")
+            return
+        file_name, work_dir, search_path = self.search_file(path)
+        if work_dir == -1:
+            print("can't find file")
+            return
+
+        target_file, search_path = self.file_manager.search_file(file_name, work_dir)
+
+        if target_file == -1:
+            print("can't find file")
+            return
+
+        if target_file.get_type_name() == "PlainFile":
+            print("PlainFile %s content:\n%s" %
+                  (target_file.file_name, target_file.content))
+
+        if target_file.get_type_name() == "DirFile":
+            print(target_file.as_text())
+
 
 
     def edit(self, *arg):
@@ -123,23 +149,15 @@ class CLI:
         except IndexError:
             print("no enough args")
             return
-        path = path.split("/")
 
-        # 去掉目标文件得到目标文件的目录地址  先找到目标文件的目录位置 作为临时工作目录
-        # 随后在这个工作目录 对目标文件进行打开操作
-        file_name = path[-1]
-        tmp_path = ""
-        for each in range(len(path)-1):
-            tmp_path  +=  path[each] + "/"
-        path = tmp_path
-        target_file, search_route = self.file_manager.search_file(path, self.work_dir)
-        if target_file == -1:
+        file_name, work_dir, search_route = self.search_file(path)
+        if work_dir == -1:
             print("can't find file")
             return
 
-        work_dir = target_file
-        file = self.file_manager.open_file(file_name, work_dir,
-                                           group_id=self.user_manager.look_up_property(self.curr_user))
+        file = self.file_manager.open_file(file_name,
+                                           work_dir,
+                                           self.user_manager.look_up_property(self.curr_user))
         if file is None:
             print("can only edit plain text file")
             return
@@ -165,19 +183,13 @@ class CLI:
         except IndexError:
             print("no enough args")
             return
-        path = path.split("/")
-        file_name = path[-1]
-        tmp_path = ""
-        for each in range(len(path) - 1):
-            tmp_path += path[each] + "/"
-        path = tmp_path
-        # 去掉目标文件得到目标文件的目录地址  先找到目标文件的目录位置 作为临时工作目录
-        # 随后在这个工作目录 对目标文件进行打开操作
-        target_file, search_route = self.file_manager.search_file(path, self.work_dir)
-        if target_file == -1:
+
+        file_name, target_file_dir, search_path = self.search_file(path)
+
+        if target_file_dir == -1:
             print("can't find file")
             return
-        work_dir = target_file
+        work_dir = target_file_dir
 
         if self.file_manager.remove_file(file_name, work_dir) == -1:
             print("delete file %s failed" % file_name)
@@ -209,44 +221,50 @@ class CLI:
         self.user_manager.assign_user_group(self.curr_user, group_id)
         print("update user group to %d " % group_id)
 
-    def shgrp(self, *args):
+    def shgrp(self):
         group_id = self.user_manager.look_up_property(self.curr_user)
         print("curr user id %d" % group_id)
 
-    def pwd(self, *arg):
+    def pwd(self):
         print(self.get_wd())
 
-
-    def show_blocks(self, *args):
+    def show_blocks(self):
         print(self.file_manager.empty_block_manager.__str__())
 
-    def show_user_history(self, *args):
+    def show_user_history(self):
         his_list = self.user_manager.get_user_history(self.curr_user)
         print("user %s action history" % self.curr_user)
         for each in his_list:
             print("%s %s" % (each[1], each[0]))
         pass
 
-    def tree(self, *args):
+    def tree(self):
         level_cnt = 0
         print("file_name  file type inode id")
-        self.tree_walk(self.work_dir, level_cnt)
+        self.tree_walk(self.work_dir, level_cnt, True)
         return
 
-
-    def tree_walk(self, curr_node, level):
+    def tree_walk(self, curr_node, level, is_last):
         res = ""
-        res += "│  " * (level - 1)
+        res += "│   " * (level - 1)
         if level != 0:
-            res += "├──"
+            if is_last:
+                res += "└──"
+            else:
+                res += "├──"
         res += "%s  %s  %s" % \
                ("root" if curr_node.file_name == "" else curr_node.file_name,
                 curr_node.get_type_name(),
                 curr_node.inode_id)
         print(res)
         if curr_node.get_type_name() == "DirFile":
-            for each_child in curr_node.dir_dict.values():
-                self.tree_walk(each_child, level + 1)
+            children = tuple(curr_node.dir_dict.values())
+            for each_child in range(len(children)):
+                if each_child == len(children) - 1:
+                    is_last = True
+                else:
+                    is_last = False
+                self.tree_walk(children[each_child], level + 1, is_last)
 
     cmd_dict = {
         "pwd": pwd,
@@ -256,6 +274,7 @@ class CLI:
         "edit": edit,
         "ls": ls,
         "tree": tree,
+        "less": less,
 
         "chmod": chmod,
         "chgrp": chgrp,
@@ -309,6 +328,20 @@ class CLI:
         res += self.work_dir.file_name + "/"
         return res
 
+    def search_file(self, path):
+        """
+        去掉目标文件得到目标文件的目录地址  先找到目标文件的目录位置 作为临时工作目录
+        随后在这个工作目录 对目标文件进行打开操作
+        :param path: 文件的绝对or 相对路径
+        :return: 如果成功找到该文件则返回 （文件名， 其所在目录， 搜索路径）
+                 没有找到则返回 -1
+        """
+        path = path.split("/")
+        file_name = path[-1]
+        tmp_path = ""
+        for each in range(len(path) - 1):
+            tmp_path += path[each] + "/"
+        path = tmp_path
 
-
-
+        target_dir, search_route = self.file_manager.search_file(path, self.work_dir)
+        return file_name, target_dir, search_route

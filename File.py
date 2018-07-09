@@ -177,6 +177,7 @@ class PlainFile(File):
                 self.file_manager.free_block(self.block_dict.pop())
 
 
+
 class DirFile(File):
     def __init__(self, dir_name, file_manager, group_id):
         File.__init__(self, dir_name, file_manager, group_id)
@@ -215,4 +216,8 @@ class DirFile(File):
             for i in range(abs(update_len)):
                 self.file_manager.free_block(self.block_dict.pop())
 
-
+    def as_text(self):
+        res = "DirFile %s contains: \n" % self.file_name
+        for each in self.dir_dict.values():
+            res += str(each) + "\n"
+        return res

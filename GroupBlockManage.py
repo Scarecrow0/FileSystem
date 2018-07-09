@@ -2,14 +2,15 @@
 使用成组链接法管理空闲块
 """
 
-
 GROUP_MAX_BLOCK_CNT = 32
 MAX_GROUP_CNT = 32
+
 
 class GroupBlock:
     """
     成组链接法中的每一块
     """
+
     def __init__(self, group_id, curr_block_id):
         self.group_id = group_id
         self.next_block = None
@@ -31,19 +32,21 @@ class GroupBlock:
             next_block = self.next_block.group_id
         else:
             next_block = -1
-        return  "group_id: %d\nnext_block: %d\nempty_cnt: %d\nempty_blocks: %s\n" \
-                % (self.group_id, next_block, self.empty_cnt, self.empty_blocks)
+        return "group_id: %d\nnext_block: %d\nempty_cnt: %d\nempty_blocks: %s\n" \
+               % (self.group_id, next_block, self.empty_cnt, self.empty_blocks)
+
 
 class EmptyBlockManager:
     """
     空闲块的成组链接
     """
+
     def __init__(self):
         last = None
         # 初始化过程 ：
         # 依次创建各个块，并依次连接起来
         for i in range(MAX_GROUP_CNT):
-            curr = GroupBlock(i, i*GROUP_MAX_BLOCK_CNT)
+            curr = GroupBlock(i, i * GROUP_MAX_BLOCK_CNT)
             curr.next_block = last
             last = curr
         self.super_block = last
@@ -76,7 +79,6 @@ class EmptyBlockManager:
                 next_super_block.next_block = self.super_block
                 self.super_block = next_super_block
 
-
     def __str__(self):
         res = ""
         res += "super_block %s\n" % self.super_block.__str__()
@@ -85,5 +87,4 @@ class EmptyBlockManager:
             if curr.empty_cnt < 32:
                 res += curr.__str__() + "\n"
             curr = curr.next_block
-        return  res
-
+        return res

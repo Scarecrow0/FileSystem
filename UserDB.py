@@ -1,6 +1,7 @@
 import os
 import pickle
 
+
 class User:
     def __init__(self, username, password):
         self.username = username
@@ -9,10 +10,9 @@ class User:
         self.history = []
 
 
-
 class UserDB:
     def __init__(self):
-        self.user_dict = {} # 保存用户名 -> 用户OBJ
+        self.user_dict = {}  # 保存用户名 -> 用户OBJ
 
     def user_check_in(self, username, password):
         user = self.user_dict.get(username)
@@ -20,7 +20,6 @@ class UserDB:
             if user.password == password:
                 return 0
         return -1
-
 
     def add_user(self, username, password, group_id):
         user = self.user_dict.get(username)
@@ -31,12 +30,11 @@ class UserDB:
             return 0
         return -1
 
-
     def check_property(self, username, group_id):
         if self.get_user_property(username) >= group_id:
             return 0  # ok
         else:
-            return -1 # 权限不足
+            return -1  # 权限不足
 
     def get_user_property(self, username):
         user = self.user_dict.get(username)

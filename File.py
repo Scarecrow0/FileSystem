@@ -20,7 +20,6 @@ class FileManager:
             work_dir.add_file(file)
             return file
 
-
     def search_file(self, path, work_dir):
         """
         根据路径寻找文件  目标可以是普通文件 或者目录文件
@@ -82,7 +81,6 @@ class FileManager:
         FileManager.remove_file_walker(target_file, work_dir)
         return 0
 
-
     @staticmethod
     def remove_file_walker(target_file, curr_dir):
         """
@@ -101,6 +99,7 @@ class FileManager:
                 curr_dir.remove_file(target)
                 target.delete()
 
+
 class iNodeManager:
     def __init__(self):
         self.free_inode = list(range(128))
@@ -115,7 +114,6 @@ class iNodeManager:
 
     def free_inode(self, inode):
         self.using_inode_list[inode] = None
-
 
 
 class File:
@@ -146,9 +144,10 @@ class File:
         self.file_manager.free_inode(self.inode_id)
 
     def __str__(self):
-        res = "%-10s%-15s%-10s%-8s%s" % \
+        res = "%-10s%-12s%-6s%-9s%s" % \
               (self.file_name, self.get_type_name(), self.group_id, self.inode_id, self.block_dict)
         return res
+
 
 class PlainFile(File):
     def __init__(self, file_name, file_manger, group_id):
@@ -162,12 +161,11 @@ class PlainFile(File):
         self.content = new_content
         self.update_length()
 
-
     def update_length(self):
         length = self.content.__len__()
         length /= 8
         length = int(math.ceil(length))
-        update_len =  length - self.file_length
+        update_len = length - self.file_length
         self.file_length = length
         if update_len > 0:
             for i in range(update_len):
@@ -177,12 +175,10 @@ class PlainFile(File):
                 self.file_manager.free_block(self.block_dict.pop())
 
 
-
 class DirFile(File):
     def __init__(self, dir_name, file_manager, group_id):
         File.__init__(self, dir_name, file_manager, group_id)
         self.dir_dict = {}
-
 
     def add_file(self, file):
         if self.dir_dict.get(file.file_name) is not None:
@@ -203,11 +199,10 @@ class DirFile(File):
     def get_file(self, file_name):
         return self.dir_dict.get(file_name)
 
-
     def update_length(self):
         length = len(self.dir_dict.keys())
         length = int(math.ceil(length))
-        update_len =  length - self.file_length
+        update_len = length - self.file_length
         self.file_length = length
         if update_len > 0:
             for i in range(update_len):

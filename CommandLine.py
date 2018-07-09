@@ -2,22 +2,19 @@ import os
 import pickle
 import time
 
-import File
-import UserDB
-
 """
 对于工作目录来说 ，就如同是打开一个个目录文件
 """
 
 
-
 def get_time():
     return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 
+
 class CLI:
-    def __init__(self):
-        self.file_manager = File.FileManager()
-        self.user_manager = UserDB.UserManager()
+    def __init__(self, file_manager, user_manager):
+        self.file_manager = file_manager
+        self.user_manager = user_manager
         self.curr_user = ''
         for root, dirs, files in os.walk("."):
             for file_ in files:
@@ -39,6 +36,7 @@ class CLI:
     """
     命令行执行的核心循环，在该循环中进行各种命令的交互
     """
+
     def main_loop(self):
         if not self.user_check_in():
             return
@@ -60,7 +58,6 @@ class CLI:
                 self.user_manager.update_history(self.curr_user, cmd_raw, get_time())
             else:
                 print("no such cmd")
-
 
     def cd(self, *arg):
         try:
@@ -88,7 +85,7 @@ class CLI:
             print("can't open non DirFile")
             return
 
-        if len(search_route) == 0: # 如果搜索路径路程为空 说明距离目标只有一步，
+        if len(search_route) == 0:  # 如果搜索路径路程为空 说明距离目标只有一步，
             self.dir_route.append(self.work_dir)  # 在进行更换wd时，将原工作目录其放入路径中
         self.work_dir = target_dir
 
@@ -97,7 +94,6 @@ class CLI:
         else:
             self.dir_route.extend(search_route)
         self.pwd()
-
 
     def mkdir(self, *arg):
         try:
@@ -116,11 +112,11 @@ class CLI:
         else:
             self.tree()
 
-
-
-
     def ls(self):
         print("in curr dir:")
+        res = "%-10s%-12s%-6s%-9s%s" % \
+              ("file_name", "file_type", "group", "inode_id", "occupied_block")
+        print(res)
         for each in self.work_dir.dir_dict.values():
             print(str(each))
 
@@ -147,8 +143,6 @@ class CLI:
 
         if target_file.get_type_name() == "DirFile":
             print(target_file.as_text())
-
-
 
     def edit(self, *arg):
         try:
@@ -182,7 +176,6 @@ class CLI:
                 break
             else:
                 content += line + "\n"
-
 
     def rm(self, *arg):
         try:
@@ -276,7 +269,6 @@ class CLI:
                         cp_node_queue.append(next_cp_node_pair)
                         continue
 
-
     def chmod(self, *args):
         if len(args) < 2:
             print("too few args")
@@ -289,7 +281,6 @@ class CLI:
             print("set %s group_id as %d ok" % (self.curr_user, group_id))
         else:
             print("user haven't enough property")
-
 
     def chgrp(self, *args):
         if len(args) < 1:
@@ -372,7 +363,7 @@ class CLI:
 
     }
 
-######################################################################
+    ######################################################################
 
     def user_check_in(self):
         while True:

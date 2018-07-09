@@ -237,7 +237,8 @@ class CLI:
     def tree_walk(self, curr_node, level):
         res = ""
         res += "│  " * (level - 1)
-        res += "├──"
+        if level != 0:
+            res += "├──"
         res += "%s  %s  %s" % \
                ("root" if curr_node.file_name == "" else curr_node.file_name,
                 curr_node.get_type_name(),

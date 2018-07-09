@@ -229,16 +229,19 @@ class CLI:
 
     def tree(self, *args):
         level_cnt = 0
-        print("file_name  inode id")
+        print("file_name  file type inode id")
         self.tree_walk(self.work_dir, level_cnt)
         return
 
+
     def tree_walk(self, curr_node, level):
-        res = "  " * (level - 1) + "|\n"
-        res += "  " * (level - 1)
-        res += "--"
-        res += "%s  %s" % \
-               ("root" if curr_node.file_name else curr_node.file_name, curr_node.inode_id)
+        res = ""
+        res += "│  " * (level - 1)
+        res += "├──"
+        res += "%s  %s  %s" % \
+               ("root" if curr_node.file_name == "" else curr_node.file_name,
+                curr_node.get_type_name(),
+                curr_node.inode_id)
         print(res)
         if curr_node.get_type_name() == "DirFile":
             for each_child in curr_node.dir_dict.values():

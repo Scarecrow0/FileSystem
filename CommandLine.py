@@ -9,7 +9,6 @@ import UserDB
 对于工作目录来说 ，就如同是打开一个个目录文件
 """
 
-# todo 展示文件树
 
 
 def get_time():
@@ -102,15 +101,23 @@ class CLI:
 
     def mkdir(self, *arg):
         try:
-            dir_name = arg[0]
+            path = arg[0]
         except IndexError:
             print("no enough args")
             return
-        group_id = self.user_manager.look_up_property(self.curr_user)
-        if self.file_manager.create_file("dir", dir_name, self.work_dir, group_id) == -1:
+
+        dir_name, belong_dir, search_path = self.search_file(path)
+        if belong_dir == -1:
+            print("target dir is not existed")
+            return
+
+        if self.create_dir_file(belong_dir, dir_name) == -1:
             print("file has existed")
         else:
-            self.ls()
+            self.tree()
+
+
+
 
     def ls(self):
         print("in curr dir:")
@@ -196,6 +203,78 @@ class CLI:
         else:
             print("delete file %s ok" % file_name)
 
+    def cp(self, *args):
+        """
+        以BFS方式复制文件
+        :param args: 源文件 目标文件
+        :return: 如果复制过程中出现失败 如文件有重复
+                则在错误处直接停止 并提示错误信息
+        """
+        try:
+            source_file_path = args[0]
+            target_dir_path = args[1]
+        except IndexError:
+            print("no enough args")
+            return
+
+        file_name, file_dir, search_path = self.search_file(source_file_path)
+        if file_dir == -1:
+            print("can't find file")
+            return
+        source_file, search_path = self.file_manager.search_file(file_name, file_dir)
+
+        file_name, file_dir, search_path = self.search_file(target_dir_path)
+        if file_dir == -1:
+            print("can't find file")
+            return
+        target_dir_file, search_path = self.file_manager.search_file(file_name, file_dir)
+        if target_dir_file.get_type_name() != "DirFile":
+            print("target file should be a DirFile!")
+            return
+
+        # 如果只是简单文本文件 复制 直接返回
+        if source_file.get_type_name() == "PlainFile":
+            if self.cp_plain_file(source_file, target_dir_file) == -1:
+                print("file %s already exists in target dir %s" %
+                      (source_file.file_name, target_dir_file.file_name))
+            return
+
+        # 如果是目录文件 则需要进一步复制扩展
+        cp_start = self.cp_dir_file(source_file, target_dir_file)
+        # 返回原目录及目标目录的DirFile对象
+        if cp_start[1] == -1:
+            print("file %s already exists in target dir %s" %
+                  (source_file.file_name, target_dir_file.file_name))
+            return
+
+        # 使用BFS策略, 将源目录内容复制到目标目录
+        cp_node_queue = [cp_start]
+        while len(cp_node_queue) != 0:
+            # 取出一个复制节点
+            curr_cp_node_pair = cp_node_queue[0]
+            curr_source_node = curr_cp_node_pair[0]
+            curr_target_node = curr_cp_node_pair[1]
+            cp_node_queue = cp_node_queue[1:]
+            # 对当前节点进行扩展
+            curr_node_children = list(curr_source_node.dir_dict.values())
+            for each_child in curr_node_children:
+                # 普通文本直接复制
+                if each_child.get_type_name() == "PlainFile":
+                    if self.cp_plain_file(each_child, curr_target_node) == -1:
+                        print("file %s already exists in target dir %s" %
+                              (each_child.file_name, curr_target_node.file_name))
+                    continue
+
+                if each_child.get_type_name() == "DirFile":
+                    # 目录文件则需要进行拓展
+                    next_cp_node_pair = self.cp_dir_file(each_child, curr_target_node)
+                    if next_cp_node_pair[1] == -1:
+                        print("file %s already exists in target dir %s" %
+                              (each_child.file_name, curr_target_node.file_name))
+                        continue
+                    else:
+                        cp_node_queue.append(next_cp_node_pair)
+                        continue
 
 
     def chmod(self, *args):
@@ -247,6 +326,7 @@ class CLI:
     def tree_walk(self, curr_node, level, is_last):
         res = ""
         res += "│   " * (level - 1)
+
         if level != 0:
             if is_last:
                 res += "└──"
@@ -260,9 +340,15 @@ class CLI:
         if curr_node.get_type_name() == "DirFile":
             children = tuple(curr_node.dir_dict.values())
             for each_child in range(len(children)):
+                # 当为最后一个节点时
                 if each_child == len(children) - 1:
-                    is_last = True
+                    # 且该节点为普通文本文件（不可拓展）或者是空目录时
+                    # 标记为末尾文件 输出末尾文件制表符
+                    if children[each_child].get_type_name() != "DirFile" or \
+                            len(children[each_child].dir_dict.keys()) == 0:
+                        is_last = True
                 else:
+                    # 反之都需要输出正常制表符
                     is_last = False
                 self.tree_walk(children[each_child], level + 1, is_last)
 
@@ -275,6 +361,7 @@ class CLI:
         "ls": ls,
         "tree": tree,
         "less": less,
+        "cp": cp,
 
         "chmod": chmod,
         "chgrp": chgrp,
@@ -345,3 +432,38 @@ class CLI:
 
         target_dir, search_route = self.file_manager.search_file(path, self.work_dir)
         return file_name, target_dir, search_route
+
+    def create_dir_file(self, work_dir, dir_name):
+        """
+        创建目录文件
+        :param work_dir:
+        :param dir_name:
+        :return:
+        """
+        group_id = self.user_manager.look_up_property(self.curr_user)
+        return self.file_manager.create_file("dir", dir_name, work_dir, group_id)
+
+    def cp_plain_file(self, source, target_dir):
+        """
+        复制普通文本文件
+        :param source: 源文件
+        :param target_dir: 目标目录
+        :return: -1 复制失败 0 成功
+        """
+        new_file = self.file_manager.open_file(source.file_name,
+                                               target_dir,
+                                               self.user_manager.look_up_property(self.curr_user))
+        if new_file is None:
+            return -1
+        new_file.write(source.content)
+        return 0
+
+    def cp_dir_file(self, source, target_dir):
+        """
+        复制目录文件
+        :param source:
+        :param target_dir:
+        :return: 失败时 new_dir == -1
+        """
+        new_dir = self.create_dir_file(target_dir, source.file_name)
+        return source, new_dir

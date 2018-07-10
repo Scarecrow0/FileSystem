@@ -13,10 +13,14 @@ class FileManager:
             return -1
         if type_ == "plain":
             file = PlainFile(file_name, self, group_id)
+            if file.inode_id == -1:
+                return -1
             work_dir.add_file(file)
             return file
         if type_ == "dir":
             file = DirFile(file_name, self, group_id)
+            if file.inode_id == -1:
+                return -1
             work_dir.add_file(file)
             return file
 
@@ -71,7 +75,7 @@ class FileManager:
         return self.inode_manager.create_inode()
 
     def free_inode(self, inode):
-        self.free_inode(inode)
+        self.inode_manager.recycle_inode(inode)
 
     @staticmethod
     def remove_file(file_name, work_dir):
@@ -89,7 +93,8 @@ class FileManager:
         """
         file_list = [target_file]
         while len(file_list) != 0:
-            target = file_list.pop()
+            target = file_list[0]
+            file_list = file_list[1:]
             if target.get_type_name() == "PlainFile":
                 curr_dir.remove_file(target)
                 target.delete()
@@ -102,17 +107,19 @@ class FileManager:
 
 class iNodeManager:
     def __init__(self):
-        self.free_inode = list(range(128))
+        self.available_inode = list(range(128))
         self.using_inode_list = {}
         self.inode_cnt = 0
 
     def create_inode(self):
         # acquire this inode address
-        inode = self.free_inode.pop()
+        if len(self.available_inode) == 0:
+            return -1
+        inode = self.available_inode.pop()
         self.using_inode_list[inode] = 0
         return inode
 
-    def free_inode(self, inode):
+    def recycle_inode(self, inode):
         self.using_inode_list[inode] = None
 
 

@@ -1,8 +1,7 @@
 
-import CommandLine
-import File
-import UserDB
-
+import  CommandLine
+import subprocess
 if __name__ == "__main__":
-    shell = CommandLine.CLI(File.FileManager(), UserDB.UserManager())
+    subprocess.call("clear")
+    shell = CommandLine.CLI()
     shell.main_loop()

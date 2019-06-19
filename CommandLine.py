@@ -1,20 +1,25 @@
 import os
 import pickle
 import time
+import subprocess
+
+import File
+import UserDB
 
 """
 对于工作目录来说 ，就如同是打开一个个目录文件
 """
 
+# todo 展示文件树
+
 
 def get_time():
     return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 
-
 class CLI:
-    def __init__(self, file_manager, user_manager):
-        self.file_manager = file_manager
-        self.user_manager = user_manager
+    def __init__(self):
+        self.file_manager = File.FileManager()
+        self.user_manager = UserDB.UserManager()
         self.curr_user = ''
         for root, dirs, files in os.walk("."):
             for file_ in files:
@@ -36,20 +41,19 @@ class CLI:
     """
     命令行执行的核心循环，在该循环中进行各种命令的交互
     """
-
     def main_loop(self):
         if not self.user_check_in():
             return
 
         while True:
-            print("%s %s $ >" % (get_time(), self.curr_user), end="")
+            print("\033[1;32m %s @%s\033[0m\033[1;34m $ >\033[0m" % (get_time(), self.curr_user), end="")
             cmd_raw = input()
             if cmd_raw == "exit":
                 file_ = open("load", "w+b")
                 pickle.dump(self.file_manager, file_)
                 file_.close()
                 self.user_manager.save_archive()
-                print("file system has been saved")
+                print("file system has been saved ")
                 return
             cmd = cmd_raw.split(" ")
             func = CLI.cmd_dict.get(cmd[0])
@@ -57,13 +61,14 @@ class CLI:
                 func(self, *cmd[1:])
                 self.user_manager.update_history(self.curr_user, cmd_raw, get_time())
             else:
-                print("no such cmd")
+                print("\033[1;31m no such cmd\033[0m")
+
 
     def cd(self, *arg):
         try:
             path = arg[0]
         except IndexError:
-            print("no enough args")
+            print("\033[1;31m no enough args\033[0m")
             return
         while path.startswith(".."):
             if self.work_dir != self.file_manager.root_dir:
@@ -76,16 +81,16 @@ class CLI:
         target_dir, search_route = self.file_manager.search_file(path, self.work_dir)
 
         if target_dir == -1:
-            print("can't not find file ")
+            print("\033[1;31m can't not find file \033[0m")
             return
         if self.user_manager.check_property(self.curr_user, target_dir.group_id) != 0:
-            print("can't not access to file , have not enough auth")
+            print("\033[1;31m can't not access to file , have not enough auth \033[0m")
             return
         if target_dir.get_type_name() != "DirFile":
-            print("can't open non DirFile")
+            print("\033[1;31m can't open non DirFile \033[0m")
             return
 
-        if len(search_route) == 0:  # 如果搜索路径路程为空 说明距离目标只有一步，
+        if len(search_route) == 0: # 如果搜索路径路程为空 说明距离目标只有一步，
             self.dir_route.append(self.work_dir)  # 在进行更换wd时，将原工作目录其放入路径中
         self.work_dir = target_dir
 
@@ -95,22 +100,23 @@ class CLI:
             self.dir_route.extend(search_route)
         self.pwd()
 
+
     def mkdir(self, *arg):
         try:
             path = arg[0]
         except IndexError:
-            print("no enough args")
+            print("\033[1;31m no enough args\033[0m")
             return
-
         dir_name, belong_dir, search_path = self.search_file(path)
         if belong_dir == -1:
-            print("target dir is not existed")
+            print("\033[31m target dir is not existed\033[0m")
             return
 
         if self.create_dir_file(belong_dir, dir_name) == -1:
-            print("file has existed")
+            print("\033[31m file has existed \033[0m")
         else:
             self.tree()
+
 
     def ls(self):
         print("in curr dir:")
@@ -119,55 +125,60 @@ class CLI:
         print(res)
         for each in self.work_dir.dir_dict.values():
             print(str(each))
+       # print("\033[1;33m in curr dir: \033[0m")
+        #for each in self.work_dir.dir_dict.values():
+        #    print(" "+str(each))
 
     def less(self, *args):
         try:
             path = args[0]
         except IndexError:
-            print("no enough args")
+            print("\033[1;31m no enough args \033[0m ")
             return
         file_name, work_dir, search_path = self.search_file(path)
         if work_dir == -1:
-            print("can't find file")
+            print("\033[1;31m can't find file \033[0m")
             return
 
         target_file, search_path = self.file_manager.search_file(file_name, work_dir)
 
         if target_file == -1:
-            print("can't find file")
+            print("\033[1;31m can't find file\033[0m")
             return
 
         if target_file.get_type_name() == "PlainFile":
-            print("PlainFile %s content:\n%s" %
+            print("\033[1;33m PlainFile\033[0m %s \033[1;33mcontent:\n\033[0m%s" %
                   (target_file.file_name, target_file.content))
 
         if target_file.get_type_name() == "DirFile":
             print(target_file.as_text())
 
+
+
     def edit(self, *arg):
         try:
             path = arg[0]
         except IndexError:
-            print("no enough args")
+            print("\033[1;31m no enough args\033[0m")
             return
 
         file_name, work_dir, search_route = self.search_file(path)
         if work_dir == -1:
-            print("can't find file")
+            print("\033[1;31m can't find file\033[0m")
             return
 
         file = self.file_manager.open_file(file_name,
                                            work_dir,
                                            self.user_manager.look_up_property(self.curr_user))
         if file is None:
-            print("can only edit plain text file")
+            print("\033[1;31m can only edit plain text file\033[0m")
             return
         if self.user_manager.check_property(self.curr_user, file.group_id) != 0:
-            print("can't not access to file , have not enough auth")
+            print("\033[1;31m can't not access to file , have not enough auth\033[0m")
             return
 
-        print("file content:\n%s" % file.read())
-        print("please input things and end up with $ in single line")
+        print("\033[1;33m file content:\033[0m\n%s" % file.read())
+        print("\033[1;33m please input things and end up with $ in single line \033[0m")
         content = ""
         while True:
             line = input()
@@ -177,24 +188,43 @@ class CLI:
             else:
                 content += line + "\n"
 
+
     def rm(self, *arg):
         try:
             path = arg[0]
         except IndexError:
-            print("no enough args")
+            print("\033[1;31m no enough args\033[0m")
             return
 
         file_name, target_file_dir, search_path = self.search_file(path)
 
         if target_file_dir == -1:
-            print("can't find file")
+            print("\033[1;31m can't find file\033[0m")
             return
         work_dir = target_file_dir
 
         if self.file_manager.remove_file(file_name, work_dir) == -1:
-            print("delete file %s failed" % file_name)
+            print("\033[1;31m delete file %s failed \033[0m" % file_name)
         else:
-            print("delete file %s ok" % file_name)
+            print("\033[1;33m delete file \033[0m%s \033[1;33mok \033[0m" % file_name)
+
+
+
+    def chmod(self, *args):
+        if len(args) < 2:
+            print("\033[1;31m too few args\033[0m")
+            return
+        file_name = args[1]
+        group_id = int(args[0])
+        target_file, search_route = self.file_manager.search_file(file_name, self.work_dir)
+        if target_file==-1:
+            print("\033[1;31m no such file \033[0m")
+            return
+        if self.user_manager.check_property(self.curr_user, group_id) == 0:
+            target_file.set_property(group_id)
+            print("\033[1;33m set\033[0m %s \033[1;33m group_id as\033[0m %d \033[1;33m ok \033[0m" % (file_name, group_id))
+        else:
+            print("\033[1;31m user haven't enough property\033[0m")
 
     def cp(self, *args):
         """
@@ -268,42 +298,31 @@ class CLI:
                     else:
                         cp_node_queue.append(next_cp_node_pair)
                         continue
-
-    def chmod(self, *args):
-        if len(args) < 2:
-            print("too few args")
-            return
-        file_name = args[1]
-        group_id = int(args[0])
-        target_file, search_route = self.file_manager.search_file(file_name, self.work_dir)
-        if self.user_manager.check_property(self.curr_user, group_id) == 0:
-            target_file.set_property(group_id)
-            print("set %s group_id as %d ok" % (self.curr_user, group_id))
-        else:
-            print("user haven't enough property")
-
     def chgrp(self, *args):
         if len(args) < 1:
-            print("too few args")
+            print("\033[1;31m too few args \033[0m")
             return
 
         group_id = int(args[0])
         self.user_manager.assign_user_group(self.curr_user, group_id)
-        print("update user group to %d " % group_id)
+        print("\033[1;33m update user group to \033[0m%d " % group_id)
 
     def shgrp(self):
         group_id = self.user_manager.look_up_property(self.curr_user)
-        print("curr user id %d" % group_id)
+        print("\033[1;33m curr user id \033[0m%d" % group_id)
 
     def pwd(self):
         print(self.get_wd())
+
+    def clear(self):
+        subprocess.call("clear")
 
     def show_blocks(self):
         print(self.file_manager.empty_block_manager.__str__())
 
     def show_user_history(self):
         his_list = self.user_manager.get_user_history(self.curr_user)
-        print("user %s action history" % self.curr_user)
+        print("\033[1;33m user %s action history \033[0m" % self.curr_user)
         for each in his_list:
             print("%s %s" % (each[1], each[0]))
         pass
@@ -353,6 +372,7 @@ class CLI:
         "tree": tree,
         "less": less,
         "cp": cp,
+        "clear":clear,
 
         "chmod": chmod,
         "chgrp": chgrp,
@@ -367,31 +387,32 @@ class CLI:
 
     def user_check_in(self):
         while True:
-            print("login/register: l/r")
+            print("\033[1;32m login/register: l/r \033[0m")
             act = input()
             if act == "l":
-                print("username: ", end="")
+                print("\033[1;32m username: \033[0m", end="")
                 username = input()
-                print("password: ", end="")
+                print("\033[1;32m password: \033[0m", end="")
                 password = input()
                 if self.user_manager.login(username, password) != 0:
-                    print("login wrong")
+                    print("\033[1;31m login wrong \033[0m")
                     continue
                 else:
                     self.curr_user = username
                     return True
 
             elif act == 'r':
-                print("username: ", end="")
+                print("\033[1;32m username: \033[0m", end="")
                 username = input()
-                print("password: ", end="")
+                print("\033[1;32m password: \033[0m", end="")
                 password = input()
-                print("confirm password: ", end="")
+                print("\033[1;32m confirm password: \033[0m", end="")
                 conf_password = input()
                 if password != conf_password:
-                    print("twice password are not same")
+                    print("\033[1;31m twice password are not same\033[0m")
+                    continue
                 if self.user_manager.register(username, password) != 0:
-                    print("register wrong")
+                    print("\033[1;31m register wrong \033[0m")
                     continue
                 else:
                     self.curr_user = username
@@ -423,7 +444,6 @@ class CLI:
 
         target_dir, search_route = self.file_manager.search_file(path, self.work_dir)
         return file_name, target_dir, search_route
-
     def create_dir_file(self, work_dir, dir_name):
         """
         创建目录文件
